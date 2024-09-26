@@ -1,0 +1,12 @@
+
+param: 100,
+      elapsed time array:  0.007309 sec,   0.004036 sec,   0.002894 sec,   0.002215 sec,   0.003249 sec,   0.002813 sec,   0.003359 sec,   0.008069 sec,   0.003011 sec,   0.002705 sec,   0.00326 sec,   0.002619 sec,   0.002621 sec,   0.002887 sec,   0.003422 sec,   0.00311 sec, 
+ 
+param: 200,
+      elapsed time array:  0.05838 sec,   0.029754 sec,   0.021446 sec,   0.023973 sec,   0.019515 sec,   0.019764 sec,   0.018249 sec,   0.023108 sec,   0.020384 sec,   0.016213 sec,   0.020276 sec,   0.017419 sec,   0.018462 sec,   0.017476 sec,   0.01629 sec,   0.01725 sec, 
+ 
+param: 500,
+      elapsed time array:  0.869278 sec,   0.459083 sec,   0.312538 sec,   0.234222 sec,   0.277736 sec,   0.262288 sec,   0.245803 sec,   0.24209 sec,   0.242979 sec,   0.237938 sec,   0.239961 sec,   0.244447 sec,   0.242995 sec,   0.238534 sec,   0.244568 sec,   0.24072 sec, 
+ 
+Total incorrect checksums for HW2: 0
+No unreleased shared memory.

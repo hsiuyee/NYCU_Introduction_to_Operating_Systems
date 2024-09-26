@@ -36,7 +36,7 @@ void cleanup(int shmid, unsigned int* C) {
         exit(1);
     }
     else {
-        cout << "Shared memory segment successfully marked for deletion.\n";
+        // cout << "Shared memory segment successfully marked for deletion.\n";
     }
 }
 
@@ -66,33 +66,74 @@ unsigned int run(vector<vector<unsigned> > A, vector<vector<unsigned> > B, int N
     }
 
     vector<pid_t> pids;
-    int turns = N / n;
-    for(int turn = 0; turn < turns; turn++) {
-        pid_t pid = fork();
-        if(pid < 0) {
-            perror("fork failed");
-            exit(1);
-        }
-        else if(pid == 0) {
-            for(int i = turn * n; i < (turn + 1) * n && i < N; i++) {
-                for(int j = 0; j < N; j++) {
-                    for(int k = 0; k < N; k++) {
-                        C[i * N + j] += A[i][k] * B[k][j];
-                    }
-                }
-            }
-            if(shmdt(C) == -1) {
-                perror("shmdt failed in child");
+    if(N % n == 0){
+        int step = N / n;
+        for(int turn = 0; turn < n; turn++) {
+            pid_t pid = fork();
+            if(pid < 0) {
+                perror("fork failed");
                 exit(1);
             }
-            exit(0);
+            else if(pid == 0) {
+                for(int i = turn * step; i < (turn + 1) * step && i < N; i++) {
+                    // cout << "Process " << getpid() << " handling row " << i << endl;
+                    for(int j = 0; j < N; j++) {
+                        unsigned int sum = 0;
+                        for(int k = 0; k < N; k++) {
+                            // C[i * N + j] += A[i][k] * B[k][j];
+                            sum += A[i][k] * B[k][j];
+                            // cout << "Process " << getpid() << " starts at row " << i << endl;
+                            C[i * N + j] += A[i][k] * B[k][j];
+                            // cout << "Process " << getpid() << " wrote to C[" << i << "][" << j << "] = " << C[i * N + j] << endl;
+                        }
+                        C[i * N + j] = sum;
+                    }
+                }
+                if(shmdt(C) == -1) {
+                    perror("shmdt failed in child");
+                    exit(1);
+                }
+                exit(0);
+            }
+            else {
+                pids.push_back(pid);
+            } 
         }
-        else {
-            pids.push_back(pid);
-        } 
     }
-    if(N % n != 0){
-        int reminder_line_start = turns * n;
+    else{
+        int step = N / n;
+        for(int turn = 0; turn < n - 1; turn++) {
+            pid_t pid = fork();
+            if(pid < 0) {
+                perror("fork failed");
+                exit(1);
+            }
+            else if(pid == 0) {
+                for(int i = turn * step; i < (turn + 1) * step && i < N; i++) {
+                    // cout << "Process " << getpid() << " handling row " << i << endl;
+                    for(int j = 0; j < N; j++) {
+                        unsigned int sum = 0;
+                        for(int k = 0; k < N; k++) {
+                            // C[i * N + j] += A[i][k] * B[k][j];
+                            sum += A[i][k] * B[k][j];
+                            // cout << "Process " << getpid() << " starts at row " << i << endl;
+                            C[i * N + j] += A[i][k] * B[k][j];
+                            // cout << "Process " << getpid() << " wrote to C[" << i << "][" << j << "] = " << C[i * N + j] << endl;
+                        }
+                        C[i * N + j] = sum;
+                    }
+                }
+                if(shmdt(C) == -1) {
+                    perror("shmdt failed in child");
+                    exit(1);
+                }
+                exit(0);
+            }
+            else {
+                pids.push_back(pid);
+            } 
+        }
+        int reminder_line_start = step * (n - 1);
         pid_t pid = fork();
         if(pid < 0) {
             perror("fork failed");
@@ -101,14 +142,15 @@ unsigned int run(vector<vector<unsigned> > A, vector<vector<unsigned> > B, int N
         else if(pid == 0) {
             for(int i = reminder_line_start; i < N; i++) {
                 for(int j = 0; j < N; j++) {
+                    unsigned int sum = 0;
                     for(int k = 0; k < N; k++) {
+                        // C[i * N + j] += A[i][k] * B[k][j];
+                        sum += A[i][k] * B[k][j];
+                        // cout << "Process " << getpid() << " starts at row " << i << endl;
                         C[i * N + j] += A[i][k] * B[k][j];
-                        // cout << "i: " << i << " k: " << k << " j: " << j  << "\n";
-                        // cout << "A[i][k]: " << A[i][k] << " B[k][j]" << B[k][j] << "\n";
+                        // cout << "Process " << getpid() << " wrote to C[" << i << "][" << j << "] = " << C[i * N + j] << endl;
                     }
-                    // C[i * N + j] = sum;
-                    // cout << "i: " << i << " j: " << j  << "\n";
-                    // cout << "C[i][j]: " << C[i * N + j] << "\n";
+                    C[i * N + j] = sum;
                 }
             }
             if(shmdt(C) == -1) {
@@ -137,7 +179,7 @@ unsigned int run(vector<vector<unsigned> > A, vector<vector<unsigned> > B, int N
     int usec = end.tv_usec - start.tv_usec;
     cout << "Multiplying matrices using " << n << " process\n";
     cout << "Elapsed time: " << sec + (usec / 1000000.0) << " sec, ";
-    cout << "Checksum: " << Checksum << "\n";
+    cout << "Checksum: " << Checksum << endl;
     return Checksum;
 }
 
@@ -166,6 +208,6 @@ int main() {
             return 0;
         }
     }
-    cout << "ok\n";
+    // cout << "ok\n";
     return 0;
 }
