@@ -35,7 +35,7 @@ vector<ll> a;
 vector<ll> vec;
 bool isVaild[20];
 pair<node, node> mp[20];
-queue<node> waiting_queue;
+queue<node> ready_queue;
 sem_t lock_queue, lock_isVaild, event_triger;
 pthread_t thd[8];
 
@@ -114,15 +114,15 @@ queue<node> init() {
 void* run(void* t){
     while(true) {
         sem_wait(&lock_queue);
-        if(waiting_queue.empty()){
+        if(ready_queue.empty()){
             sem_post(&lock_queue);
             sem_post(&lock_isVaild);
             sem_post(&event_triger);
             return NULL;
         }
         // make sure only one take in the same time
-        node now_node = waiting_queue.front();
-        waiting_queue.pop();
+        node now_node = ready_queue.front();
+        ready_queue.pop();
         sem_post(&lock_queue);
         if(now_node.no >= 8)
             bubblesort(now_node.start_pos, now_node.end_pos);
@@ -145,7 +145,7 @@ void* run(void* t){
             // cout << "mp[parent_no].first.start_pos: " << mp[parent_no].first.start_pos << endl;
             // cout << "mp[parent_no].second.end_pos: " << mp[parent_no].second.end_pos << endl;
             sem_wait(&lock_queue);
-            waiting_queue.push(node{mp[parent_no].first.start_pos, mp[parent_no].second.end_pos, parent_no});
+            ready_queue.push(node{mp[parent_no].first.start_pos, mp[parent_no].second.end_pos, parent_no});
             sem_post(&lock_queue);
         }
         sem_post(&lock_isVaild);
@@ -157,7 +157,7 @@ void solve(int num_of_thread) {
         // test(1);
         struct timeval start, end;
         gettimeofday(&start, 0);
-        waiting_queue = init();
+        ready_queue = init();
 
 
         cout << "worker thread #" << num_of_thread;
