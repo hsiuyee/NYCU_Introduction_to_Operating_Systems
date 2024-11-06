@@ -43,8 +43,16 @@ int determine_level(size_t size) {
 
 void add_to_multilevel_list(struct block *block) {
     int level = determine_level(block->size);
-    block->next_in_list = multilevel_list[level];
-    multilevel_list[level] = block;
+    if (multilevel_list[level] == NULL) {
+        multilevel_list[level] = block;
+    } else {
+        struct block *current = multilevel_list[level];
+        while (current->next_in_list != NULL) {
+            current = current->next_in_list;
+        }
+        current->next_in_list = block;
+    }
+    block->next_in_list = NULL;
 }
 
 void remove_from_multilevel_list(struct block *block) {
@@ -160,8 +168,10 @@ void free(void *ptr) {
     if (ptr == NULL) return;
     struct block *temp = (struct block *)ptr - 1;
     temp->free = 1;
+    remove_from_multilevel_list(temp);
 
     if (check(temp->prev)) {
+        remove_from_multilevel_list(temp->prev);
         temp->prev->size += Block_Size + temp->size;
         temp->prev->next = temp->next;
         if (temp->next != NULL) {
@@ -171,6 +181,7 @@ void free(void *ptr) {
     }
 
     if (check(temp->next)) {
+        remove_from_multilevel_list(temp->next);
         temp->size += Block_Size + temp->next->size;
         temp->next = temp->next->next;
         if (temp->next != NULL) {
