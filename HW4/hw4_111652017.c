@@ -30,6 +30,7 @@ const size_t Max_Size = 20000;
 struct block *front = NULL;
 struct block *multilevel_list[11];
 void *start = 0;
+int cnt = 0;
 
 int determine_level(size_t size) {
     int level = 0;
@@ -42,6 +43,7 @@ int determine_level(size_t size) {
 }
 
 void add_to_multilevel_list(struct block *block) {
+    block->free = 1;
     int level = determine_level(block->size);
     if (multilevel_list[level] == NULL) {
         multilevel_list[level] = block;
@@ -59,6 +61,7 @@ void remove_from_multilevel_list(struct block *block) {
     int level = determine_level(block->size);
     struct block *current = multilevel_list[level];
     struct block *prev = NULL;
+    block->free = 0;
 
     while (current != NULL && current != block) {
         prev = current;
@@ -72,6 +75,11 @@ void remove_from_multilevel_list(struct block *block) {
             prev->next_in_list = current->next_in_list;
         }
     }
+    else{
+        // char mes[50];
+        // snprintf(mes, sizeof(mes), "error when remove_from_multilevel_list");
+        // write(1, mes, strlen(mes));
+    }
 }
 
 void find_maximum_chunk_size() {
@@ -81,14 +89,19 @@ void find_maximum_chunk_size() {
         while (temp != NULL) {
             if (temp->size > mx && temp->free == 1)
                 mx = temp->size;
+            else if (temp->free == 0) {
+                // char mes[50];
+                // snprintf(mes, sizeof(mes), "error when free");
+                // write(1, mes, strlen(mes));
+            }
             temp = temp->next_in_list;
         }
     }
     
-    char mes[50];
+    char mes[40];
     memset(mes, '\0', sizeof(mes));
-    snprintf(mes, 50, "Max Free Chunk Size = %ld\n", mx);
-    write(1, mes, 50);
+    snprintf(mes, 40, "Max Free Chunk Size = %ld\n", mx);
+    write(1, mes, 40);
 
     munmap(start, Max_Size);
 }
@@ -109,6 +122,7 @@ void init() {
 }
 
 void *malloc(size_t size) {
+    cnt++;
     if (size % Block_Size != 0) {
         size = size / Block_Size * Block_Size + Block_Size;
     }
@@ -152,6 +166,9 @@ void *malloc(size_t size) {
             best_fit->next = new_block;
             add_to_multilevel_list(new_block);
         } else {
+            // char mes[50];
+            // snprintf(mes, sizeof(mes), "No find besfit = %ld\n", cnt);
+            // write(1, mes, strlen(mes));
             best_fit->free = 0;
         }
         return (best_fit + 1);
@@ -165,10 +182,11 @@ bool check(struct block *temp) {
 }
 
 void free(void *ptr) {
+    cnt++;
     if (ptr == NULL) return;
     struct block *temp = (struct block *)ptr - 1;
     temp->free = 1;
-    remove_from_multilevel_list(temp);
+    // remove_from_multilevel_list(temp);
 
     if (check(temp->prev)) {
         remove_from_multilevel_list(temp->prev);
