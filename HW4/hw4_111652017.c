@@ -14,6 +14,7 @@ public GitHub repository or a public web page.
 #include <sys/mman.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <unistd.h>
 
 struct block{
     int free;
@@ -150,8 +151,8 @@ void *malloc(size_t size) {
 
     if (best_fit != NULL) {
         remove_from_multilevel_list(best_fit);
-        if (best_fit->size > size + Block_Size) {
-            struct block *new_block = (struct block *)((char *)best_fit + Block_Size + size);
+        if (best_fit->size != size) {
+            struct block *new_block = best_fit + 1 + size / 32;
             new_block->size = best_fit->size - size - Block_Size;
             new_block->free = 1;
             new_block->prev = best_fit;
