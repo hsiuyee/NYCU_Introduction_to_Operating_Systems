@@ -276,6 +276,6 @@ signed main(int argc, char* argv[]) {
     for(int i = 0; i < 5; i++){
         elapsed_time += CFLRU(FRAME_SIZE[i]);
     }
-    printf("Elapsed time: %.6f sec\n\n", elapsed_time);
+    printf("Elapsed time: %.6f sec\n", elapsed_time);
     return 0;
 }
