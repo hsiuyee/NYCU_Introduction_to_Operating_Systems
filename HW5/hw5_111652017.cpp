@@ -1,3 +1,12 @@
+/*
+Student No.: 111652017
+Student Name: Hsiu-I Liao
+Email: hsiuyee.sc11@nycu.edu.tw
+SE tag: xnxcxtxuxoxsx
+Statement: I am fully aware that this program is not
+supposed to be posted to a public server, such as a
+public GitHub repository or a public web page.
+*/
 #include <iostream>
 #include <map>
 #include <iomanip>
