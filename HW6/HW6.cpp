@@ -143,29 +143,20 @@ static int my_read(const char *path, char *buffer, size_t size, off_t offset, st
 int my_readlink(const char *path, char *buffer, size_t size) {
     string path_s(path);
 
-    if (file_attribute.count(path_s) == 0 || file_content.count(path_s) == 0) {
-        return -ENOENT;
-    }
-
-    struct stat *st = file_attribute[path_s];
-    if ((st->st_mode & S_IFMT) != S_IFLNK) {
+	bool flag = (file_attribute.count(path_s) == 0 || file_content.count(path_s) == 0);
+    if (flag) return -ENOENT;
+    else if ((file_attribute[path_s]->st_mode & S_IFMT) != S_IFLNK) {
         return -EINVAL;
     }
 
     const char *target = file_content[path_s];
     size_t target_len = strlen(target);
 
-    if (target_len >= size) {
-        memcpy(buffer, target, size - 1);
-        buffer[size - 1] = '\0';
-    } else {
-        memcpy(buffer, target, target_len);
-        buffer[target_len] = '\0';
-    }
-
+	size_t rev = (target_len >= size ? size - 1 : target_len);
+	memcpy(buffer, target, rev);
+	buffer[rev] = '\0';
     return 0;
 }
-
 
 void init(struct stat * st, header_old_tar tar_header) {
 	st->st_mode = tar_header.getMode();
@@ -178,18 +169,17 @@ void init(struct stat * st, header_old_tar tar_header) {
 }
 
 int main(int argc, char *argv[]) {
-
   fstream file;
   file.open("test.tar", ifstream::in | ifstream::binary);
 
-  char tar_end[512];
-  memset(tar_end, '\0', 512);
+  char tar_end[header_old_tar_maximum_size];
+  memset(tar_end, '\0', header_old_tar_maximum_size);
 
   while (!file.eof()) {
     header_old_tar tar_header{};
-    file.read((char *) &tar_header, 512);
+    file.read((char *) &tar_header, header_old_tar_maximum_size);
 
-    if (memcmp(&tar_header, tar_end, 512) == 0) {
+    if (memcmp(&tar_header, tar_end, header_old_tar_maximum_size) == 0) {
       break;
     }
 
@@ -203,7 +193,8 @@ int main(int argc, char *argv[]) {
     smatch match;
     if (name[name.size() - 1] == '/') {
       regex_search(name, match, regex("(.*/)(.*/)$"));
-    } else {
+    } 
+	else {
       regex_search(name, match, regex("(.*/)([^/]*)$"));
     }
 
@@ -211,20 +202,10 @@ int main(int argc, char *argv[]) {
     struct stat *st = new struct stat;
     init(st, tar_header);
 
-    if (file_attribute.count(name) == 1) {
-      delete[] file_attribute[name];
-      file_attribute.erase(name);
-    }
-
-    if (file_content.count(name) == 1) {
-      delete[] file_content[name];
-      file_content.erase(name);
-    }
-
     file_attribute[name] = st;
     file_content[name] = buffer;
 
-    if (tar_header.typeflag == '2') { // '2' 表示符號連結
+    if (tar_header.typeflag == '2') {
         string name(tar_header.name);
         name.insert(0, "/");
 
@@ -233,17 +214,14 @@ int main(int argc, char *argv[]) {
         strcpy(link_buffer, target_path.c_str());
 
         struct stat *st_link = new struct stat;
-        *st_link = *st; // 繼承普通檔案屬性
-        st_link->st_mode = S_IFLNK | 0777; // 設置為符號連結模式
-        // st_link->st_size = target_path.size();
+        *st_link = *st;
+        st_link->st_mode = S_IFLNK | 0777;
 
         file_attribute[name] = st_link;
         file_content[name] = link_buffer;
     }
-
-
     // ignore paddings
-    file.ignore((512 - (tar_header.getSize() % 512)) % 512);
+    file.ignore((512 - (tar_header.getSize() % header_old_tar_maximum_size)) % header_old_tar_maximum_size);
   }
 
   memset(&operations, 0, sizeof(operations));
@@ -251,6 +229,5 @@ int main(int argc, char *argv[]) {
   operations.readdir = my_readdir;
   operations.read = my_read;
   operations.readlink = my_readlink;
-
   return fuse_main(argc, argv, &operations, NULL);
 }
