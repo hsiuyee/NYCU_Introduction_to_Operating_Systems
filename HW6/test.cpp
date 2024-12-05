@@ -20,14 +20,6 @@ class Tar_Header {
   char linkFlag; // typeFlag in Unix Standard Tar
   char linkedFileName[100];
   //Unix Standard Tar
-  char magic[6]; //"ustar"
-  char ustarVersion[2]; //"00"
-  char ownerUserName[32];
-  char ownerGroupName[32];
-  char deviceMajorNumber[8];
-  char deviceMinorNumber[8];
-  char filenamePrefix[155];
-  char padding[12];
 
   static uint64_t octal2decimal(char *data, size_t size) {
     uint64_t n = 0;
@@ -37,9 +29,6 @@ class Tar_Header {
     return n;
   }
 
-  bool isUSTAR() {
-    return (memcmp(magic, "ustar", 5) == 0 && memcmp(ustarVersion, "00", 2) == 0);
-  }
 
   mode_t getMode() {
     return octal2decimal(mode, 8);
@@ -219,10 +208,6 @@ int main(int argc, char *argv[]) {
 
     file_attribute[filename] = st;
     file_content[filename] = buffer;
-
-
-    // ignore paddings
-    file.ignore((512 - (tar_header.getFileSize() % 512)) % 512);
   }
 
   memset(&operations, 0, sizeof(operations));
