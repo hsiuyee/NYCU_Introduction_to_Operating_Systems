@@ -1,7 +1,16 @@
+/*
+Student No.: 111652017
+Student Name: Hsiu-I Liao
+Email: hsiuyee.sc11@nycu.edu.tw
+SE tag: xnxcxtxuxoxsx
+Statement: I am fully aware that this program is not supposed to be
+posted to a public server, such as a public GitHub repository or a
+public web page.
+*/
 #define FUSE_USE_VERSION 30
 
-#include <fuse.h>
 #include <bits/stdc++.h>
+#include <fuse.h>
 #include <unistd.h>
 #include <sys/stat.h>
 
@@ -29,8 +38,7 @@ unsigned long long octal_to_decimal(char *data, size_t size) {
 }
 
 // POSIX ustar Archives : https://www.systutorials.com/docs/linux/man/5-tar/
-class header_old_tar {
-public:
+struct header_old_tar {
 	char name[100];
 	char mode[8];
 	char uid[8];
@@ -99,6 +107,24 @@ static int my_getattr(const char *path, struct stat *st) {
     return 0;
 }
 
+static int my_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) {
+	string path_s(path);
+	auto it = file_content.find(path_s);
+	if (it != file_content.end()) {
+		// have file_content
+		size_t f_size = file_attribute[path_s]->st_size;
+		// read position is invaild
+		int rev = 0;
+		if (offset >= f_size) rev = 0; 
+		rev = (offset + size > f_size ? f_size - offset : size);
+		// split if size is too large but some part vaild
+		memcpy(buffer, file_content[path_s] + offset, rev);
+		return rev;
+	}
+	return 0;
+}
+
+
 static int my_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {
 	string path_s(path);
 	// uniform
@@ -123,127 +149,84 @@ static int my_readdir(const char *path, void *buffer, fuse_fill_dir_t filler, of
 	return 0;
 }
 
-static int my_read(const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi) {
-	string path_s(path);
-	auto it = file_content.find(path_s);
-	if (it != file_content.end()) {
-		// have file_content
-		size_t f_size = file_attribute[path_s]->st_size;
-		// read position is invaild
-		int rev = 0;
-		if (offset >= f_size) rev = 0; 
-		rev = (offset + size > f_size ? f_size - offset : size);
-		// split if size is too large but some part vaild
-		memcpy(buffer, file_content[path_s] + offset, rev);
-		return rev;
-	}
-	return 0;
-}
-
 int my_readlink(const char *path, char *buffer, size_t size) {
     string path_s(path);
 
-    if (file_attribute.count(path_s) == 0 || file_content.count(path_s) == 0) {
-        return -ENOENT;
-    }
-
-    struct stat *st = file_attribute[path_s];
-    if ((st->st_mode & S_IFMT) != S_IFLNK) {
+	bool flag = (file_attribute.count(path_s) == 0 || file_content.count(path_s) == 0);
+    if (flag) return -ENOENT;
+    else if ((file_attribute[path_s]->st_mode & S_IFMT) != S_IFLNK) {
         return -EINVAL;
     }
 
     const char *target = file_content[path_s];
     size_t target_len = strlen(target);
 
-    if (target_len >= size) {
-        memcpy(buffer, target, size - 1);
-        buffer[size - 1] = '\0';
-    } else {
-        memcpy(buffer, target, target_len);
-        buffer[target_len] = '\0';
-    }
-
+	size_t rev = (target_len >= size ? size - 1 : target_len);
+	memcpy(buffer, target, rev);
+	buffer[rev] = '\0';
     return 0;
 }
 
-
 void init(struct stat * st, header_old_tar tar_header) {
+	st->st_nlink = 0;
+	st->st_blocks = 0;
 	st->st_mode = tar_header.getMode();
 	st->st_uid = tar_header.getUid();
 	st->st_gid = tar_header.getGid();
 	st->st_size = tar_header.getSize();
 	st->st_mtime = tar_header.getMtime();
-	st->st_nlink = 0;
-	st->st_blocks = 0;
 }
 
 int main(int argc, char *argv[]) {
-
+  char tar_end[header_old_tar_maximum_size];
   fstream file;
   file.open("test.tar", ifstream::in | ifstream::binary);
-
-  char tar_end[512];
-  memset(tar_end, '\0', 512);
+  memset(tar_end, '\0', header_old_tar_maximum_size);
 
   while (!file.eof()) {
     header_old_tar tar_header{};
-    file.read((char *) &tar_header, 512);
+    file.read((char *) &tar_header, header_old_tar_maximum_size);
 
-    if (memcmp(&tar_header, tar_end, 512) == 0) {
-      break;
-    }
+	bool isEmpty = (memcmp(&tar_header, tar_end, header_old_tar_maximum_size) == 0);
+    if (isEmpty) break;
 
-    char *buffer = new char[tar_header.getSize() + 1];
-    file.read(buffer, tar_header.getSize());
-    buffer[tar_header.getSize()] = '\0';
+	size_t tar_header_size = tar_header.getSize();
+    char *buffer = new char[tar_header_size + 1];
+    file.read(buffer, tar_header_size);
+    buffer[tar_header_size] = '\0';
 
     string name(tar_header.name);
     name.insert(0, "/");
 
     smatch match;
-    if (name[name.size() - 1] == '/') {
-      regex_search(name, match, regex("(.*/)(.*/)$"));
-    } else {
+    if (name[name.size() - 1] != '/') {
       regex_search(name, match, regex("(.*/)([^/]*)$"));
+    } 
+	else {
+      regex_search(name, match, regex("(.*/)(.*/)$"));
     }
 
-    file_directory[match.str(1)].insert(match.str(2));
     struct stat *st = new struct stat;
+    file_directory[match.str(1)].insert(match.str(2));
     init(st, tar_header);
-
-    if (file_attribute.count(name) == 1) {
-      delete[] file_attribute[name];
-      file_attribute.erase(name);
-    }
-
-    if (file_content.count(name) == 1) {
-      delete[] file_content[name];
-      file_content.erase(name);
-    }
-
     file_attribute[name] = st;
     file_content[name] = buffer;
 
-    if (tar_header.typeflag == '2') { // '2' 表示符號連結
-        string name(tar_header.name);
-        name.insert(0, "/");
-
+    if (tar_header.typeflag == '2') {
+        string name = "/" + string(tar_header.name);
         string target_path(tar_header.linkname);
         char *link_buffer = new char[target_path.size() + 1];
         strcpy(link_buffer, target_path.c_str());
 
         struct stat *st_link = new struct stat;
-        *st_link = *st; // 繼承普通檔案屬性
-        st_link->st_mode = S_IFLNK | 0777; // 設置為符號連結模式
-        // st_link->st_size = target_path.size();
+        *st_link = *st;
+        st_link->st_mode = S_IFLNK | 0777;
 
         file_attribute[name] = st_link;
         file_content[name] = link_buffer;
     }
-
-
-    // ignore paddings
-    file.ignore((512 - (tar_header.getSize() % 512)) % 512);
+	size_t padding = (512 - (tar_header.getSize() % header_old_tar_maximum_size)) % header_old_tar_maximum_size;
+    file.ignore(padding);
   }
 
   memset(&operations, 0, sizeof(operations));
@@ -251,6 +234,5 @@ int main(int argc, char *argv[]) {
   operations.readdir = my_readdir;
   operations.read = my_read;
   operations.readlink = my_readlink;
-
   return fuse_main(argc, argv, &operations, NULL);
 }
